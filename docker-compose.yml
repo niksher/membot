@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  mariadb:
+    image: mariadb:11.3.2
+    container_name: mariadb
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASS}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASS}
+      MYSQL_INITDB_SKIP_TZINFO: 1
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./mariadb/custom.cnf:/etc/mysql/conf.d/custom.cnf
+    ports:
+      - "3306:3306"
+    networks:
+      - tg-bot-net
+    restart: unless-stopped
+
+  tg-video-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tg-video-bot
+    environment:
+      - DB_HOST=mariadb
+      - DB_PORT=3306
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - DB_NAME=${DB_NAME}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - ADMIN_IDS=${ADMIN_IDS}
+      - ADMIN_MODE=${ADMIN_MODE}
+      - ADMIN_GROUP_IDS=${ADMIN_GROUP_IDS}
+    networks:
+      - tg-bot-net
+    restart: unless-stopped
+
+networks:
+  tg-bot-net:
+    driver: bridge
+
+volumes:
+  mariadb_data:
+    driver: local
