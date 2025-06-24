@@ -276,10 +276,10 @@ func (r *VideoRepository) VideoExists(id int64) (bool, error) {
 }
 
 // GetRandomUnsentVideo возвращает случайное видео, которое еще не было отправлено в указанный чат
-func (r *VideoRepository) GetRandomUnsentVideo(chatID int64) (models.Video, error) {
-	var video models.Video
+func (r *VideoRepository) GetRandomUnsentVideo(chatID int64, limit int) ([]models.Video, error) {
+	var videos []models.Video
 
-	query := `
+	rows, err := r.db.Query(`
 		SELECT v.id, v.file_id, v.caption 
 		FROM videos v
 		WHERE NOT EXISTS (
@@ -287,29 +287,31 @@ func (r *VideoRepository) GetRandomUnsentVideo(chatID int64) (models.Video, erro
 			WHERE sv.video_id = v.id AND sv.chat_id = ?
 		)
 		ORDER BY RAND()
-		LIMIT 1`
-
-	err := r.db.QueryRow(query, chatID).Scan(
-		&video.ID,
-		&video.FileID,
-		&video.Caption,
+		LIMIT ?`,
+		chatID, limit,
 	)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return video, fmt.Errorf("no unsent videos available")
+			return videos, fmt.Errorf("no unsent videos available")
 		}
-		return video, fmt.Errorf("failed to get random video: %v", err)
+		return videos, fmt.Errorf("failed to get random video: %v", err)
 	}
 
-	// Получаем теги для видео
-	tags, err := r.GetVideoTags(video.ID)
-	if err != nil {
-		return video, fmt.Errorf("failed to get video tags: %v", err)
+	for rows.Next() {
+		var v models.Video
+		if err := rows.Scan(&v.ID, &v.FileID, &v.Caption); err != nil {
+			return nil, err
+		}
+		tags, err := r.GetVideoTags(v.ID)
+		if err != nil {
+			return videos, fmt.Errorf("failed to get video tags: %v", err)
+		}
+		v.Tags = tags
+		videos = append(videos, v)
 	}
-	video.Tags = tags
 
-	return video, nil
+	return videos, nil
 }
 
 func (r *VideoRepository) GetAllVideos() ([]models.Video, error) {

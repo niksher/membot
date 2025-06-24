@@ -46,6 +46,8 @@ func (b *Bot) HandleCommand(msg *tgbotapi.Message) {
 		b.HandleGetByTagCommand(msg)
 	case "get_video":
 		b.HandleGetVideoCommand(msg)
+	case "get_videos":
+		b.HandleGetVideosCommand(msg)
 	case "add_video":
 		b.HandleAddVideoCommand(msg)
 	case "list_videos":
@@ -165,7 +167,7 @@ func (b *Bot) HandleGetVideoCommand(msg *tgbotapi.Message) {
 	chatID := msg.Chat.ID
 
 	// Получаем случайное непросмотренное видео
-	video, err := b.VideoRepository.GetRandomUnsentVideo(chatID)
+	video, err := b.VideoRepository.GetRandomUnsentVideo(chatID, 1)
 	if err != nil {
 		if err.Error() == "no unsent videos available" {
 			b.SendMessage(chatID, "🎉 Вы уже просмотрели все доступные видео!")
@@ -177,14 +179,14 @@ func (b *Bot) HandleGetVideoCommand(msg *tgbotapi.Message) {
 	}
 
 	// Отправляем видео
-	videoMsg := tgbotapi.NewVideoShare(chatID, video.FileID)
-	if video.Caption != "" {
-		videoMsg.Caption = video.Caption
+	videoMsg := tgbotapi.NewVideoShare(chatID, video[0].FileID)
+	if video[0].Caption != "" {
+		videoMsg.Caption = video[0].Caption
 	}
 
 	// Добавляем кнопки с тегами
-	if len(video.Tags) > 0 {
-		videoMsg.ReplyMarkup = createVideoTagsKeyboard(video.Tags)
+	if len(video[0].Tags) > 0 {
+		videoMsg.ReplyMarkup = createVideoTagsKeyboard(video[0].Tags)
 	}
 
 	if _, err := b.API.Send(videoMsg); err != nil {
@@ -194,8 +196,43 @@ func (b *Bot) HandleGetVideoCommand(msg *tgbotapi.Message) {
 	}
 
 	// Помечаем видео как отправленное
-	if err := b.VideoRepository.MarkVideoSent(chatID, video.ID); err != nil {
+	if err := b.VideoRepository.MarkVideoSent(chatID, video[0].ID); err != nil {
 		log.Printf("Failed to mark video as sent: %v", err)
+	}
+}
+
+// HandleGetVideosCommand обрабатывает команду /get_videos
+func (b *Bot) HandleGetVideosCommand(msg *tgbotapi.Message) {
+	chatID := msg.Chat.ID
+
+	// Получаем случайное непросмотренное видео
+	nums, err := strconv.Atoi(msg.CommandArguments())
+	videos, err := b.VideoRepository.GetRandomUnsentVideo(chatID, nums)
+	if err != nil {
+		if err.Error() == "no unsent videos available" {
+			b.SendMessage(chatID, "🎉 Вы уже просмотрели все доступные видео!")
+			return
+		}
+		log.Printf("Failed to get random video: %v", err)
+		b.SendMessage(chatID, "❌ Произошла ошибка при получении видео")
+		return
+	}
+
+	for _, v := range videos {
+		// Отправляем видео
+		videoMsg := tgbotapi.NewVideoShare(chatID, v.FileID)
+		if v.Caption != "" {
+			videoMsg.Caption = v.Caption
+		}
+		if _, err := b.API.Send(videoMsg); err != nil {
+			log.Printf("Failed to send video: %v", err)
+			b.SendMessage(chatID, "❌ Не удалось отправить видео")
+			return
+		}
+		// Помечаем видео как отправленное
+		if err := b.VideoRepository.MarkVideoSent(chatID, v.ID); err != nil {
+			log.Printf("Failed to mark video as sent: %v", err)
+		}
 	}
 }
 

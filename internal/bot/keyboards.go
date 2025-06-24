@@ -13,6 +13,9 @@ func mainMenuKeyboard() tgbotapi.ReplyKeyboardMarkup {
 		tgbotapi.NewKeyboardButtonRow(
 			tgbotapi.NewKeyboardButton("/get_video"),
 		),
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton("/get_videos"),
+		),
 		/*tgbotapi.NewKeyboardButtonRow(
 			tgbotapi.NewKeyboardButton("🏷 Добавить теги"),
 			tgbotapi.NewKeyboardButton("🔍 Найти по тегу"),
