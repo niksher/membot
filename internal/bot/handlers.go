@@ -46,7 +46,7 @@ func (b *Bot) HandleCommand(msg *tgbotapi.Message) {
 		b.HandleGetByTagCommand(msg)
 	case "get_video":
 		b.HandleGetVideoCommand(msg)
-	case "get_videos":
+	case "get_videos", "get_videos_5":
 		b.HandleGetVideosCommand(msg)
 	case "add_video":
 		b.HandleAddVideoCommand(msg)
@@ -205,8 +205,15 @@ func (b *Bot) HandleGetVideoCommand(msg *tgbotapi.Message) {
 func (b *Bot) HandleGetVideosCommand(msg *tgbotapi.Message) {
 	chatID := msg.Chat.ID
 
-	// Получаем случайное непросмотренное видео
-	nums, err := strconv.Atoi(msg.CommandArguments())
+	// Получаем случайное непросмотренное видео (по умолчанию 5)
+	nums := 5
+	args := strings.TrimSpace(msg.CommandArguments())
+	if args != "" {
+		if parsedNums, err := strconv.Atoi(args); err == nil && parsedNums > 0 {
+			nums = parsedNums
+		}
+	}
+
 	videos, err := b.VideoRepository.GetRandomUnsentVideo(chatID, nums)
 	if err != nil {
 		if err.Error() == "no unsent videos available" {
@@ -343,9 +350,10 @@ func (b *Bot) SendMessage(chatID int64, text string) {
 
 func (b *Bot) SendHelpMessage(chatID int64) {
 	helpText := `📚 Доступные команды:
+/get_video - Получить случайное видео
+/get_videos [кол-во] - Получить случайные видео (по умолчанию 5)
 /add_tags [ID] [теги] - Добавить теги к видео
-/get_by_tag [тег] - Найти видео по тегу
-/get_video [ID] - Получить видео по ID`
+/get_by_tag [тег] - Найти видео по тегу`
 	b.SendMessage(chatID, helpText)
 }
 

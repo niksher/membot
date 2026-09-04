@@ -2,6 +2,7 @@ package bot
 
 import (
 	"database/sql"
+	"log"
 	"tg-video-bot/internal/database"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
@@ -23,6 +24,11 @@ func Start(token string, db *sql.DB) error {
 		API:             botAPI,
 		DB:              db,
 		VideoRepository: *database.NewVideoRepository(db),
+	}
+
+	// Регистрируем команды в меню Telegram
+	if err := bot.SetCommands(); err != nil {
+		log.Printf("Не удалось зарегистрировать команды бота: %v", err)
 	}
 
 	u := tgbotapi.NewUpdate(0)
